@@ -11,24 +11,18 @@ $.fn.digits = function () {
 }
 
 var mainCallback = function () {
-    console.log("clicked");
-    //get user value
-    user = $("#input").val();
+    var user = $("#input").val();
     var userArray = user.split(); //conditional if you have multiple vals
     //check to see if input string contains comma
     if (user.indexOf(',') > -1) {
         userArray = user.split(',');
-        console.log(userArray);
-        userArray = unique(userArray);
-        console.log(userArray);
-
     }
-    getJSONData(userArray);
+    userArray = Array.from(new Set(userArray));
+    userArray = sorter(userArray);
     return false;
 };
 
 function getJSONData(userArray) {
-    sorter(userArray);
     for (i = 0; i < userArray.length; i++) {
         (function (i) { //protect i from callback
             $.getJSON(BASE_URL + userArray[i] + "/?callback=?", function (json) {
@@ -38,7 +32,7 @@ function getJSONData(userArray) {
                     var cardCon = '.card-content.' + i;
 
                     $("<div class='row " + i + "'></div>").appendTo(".boxer");
-                    $("<div class='col s12 m6 offset-m3 " + i + "'></div>").appendTo('.row.' + i);
+                    $("<div class='col s12 m6 offset-m3 l4 offset-l4 " + i + "'></div>").appendTo('.row.' + i);
                     $("<div class='card " + i + "'></div>").appendTo(".col." + i);
 
                     $("<div class='card-image " + i + "'></div>").appendTo(card);
@@ -49,10 +43,7 @@ function getJSONData(userArray) {
                     $("<h5>Total Views: " + json.views + "</h5>").appendTo(cardCon);
                     $('h5:first-of-type').digits(); //neuroticism...
                 } else {
-                    //do this uh...later
-                    //                    $('img').attr('src', 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==');
-                    //                    $("h2:not(:first)").empty();
-                    //                    $('#error').text(json.message);
+                    alert(json.message);
                 }
             })
         })(i);
@@ -60,36 +51,42 @@ function getJSONData(userArray) {
 }
 
 function sorter(userArray) { //make another JSON call for comparing views
-    var dict = {};
+    var sortPromise;
+    //var dict = {};
     var values = [];
     if (userArray.length > 1) {
         for (i = 0; i < userArray.length; i++) {
             (function (i) {
-                $.getJSON(BASE_URL + userArray[i] + "/?callback=?", function (json) {
+                sortPromise = $.getJSON(BASE_URL + userArray[i] + "/?callback=?", function (json) {
                     values[i] = json.views;
                 })
             })(i);
         }
+        $.when(sortPromise).done(function () {
+            var swapped;
+            //cheapo sorting w/o assoc.
+            do {
+                swapped = false;
+                for (var i = 0; i < userArray.length - 1; i++) {
+                    if (values[i] > values[i + 1]) {
+                        var temp1 = userArray[i];
+                        var temp2 = values[i];
+
+                        values[i] = values[i + 1];
+                        userArray[i] = userArray[i + 1];
+                        values[i + 1] = temp2;
+                        userArray[i + 1] = temp1;
+                        swapped = true;
+                    }
+                }
+            } while (swapped);
+            console.log("after sort " + userArray);
+            console.log("after sort " + values);
+            return getJSONData(userArray.reverse());
+        })
+        console.log("before sort " + userArray);
+        console.log("before sort " + values);
+    } else {
+        return getJSONData(userArray);
     }
-    dict = toObject(userArray, values);
-    console.log(values);
-
-    console.log(dict);
-}
-
-function unique(list) {
-    var result = [];
-    $.each(list, function (i, e) {
-        if ($.inArray(e, result) == -1) result.push(e);
-    });
-    return result;
-}
-
-function toObject(names, values) {
-    console.log(values);
-    var result = {};
-    for (var i = 0; i < names.length; i++)
-        result[names[i]] = values[i];
-    console.log(result);
-    return result;
 }
